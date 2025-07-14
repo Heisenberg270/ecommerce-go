@@ -36,14 +36,24 @@ func initDB() {
 
 	// migration
 	schema := `
-  CREATE TABLE IF NOT EXISTS products (
-    id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL,
-    description TEXT,
-    price NUMERIC(10,2) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-  );`
+	CREATE TABLE IF NOT EXISTS products (
+		id SERIAL PRIMARY KEY,
+		name TEXT NOT NULL,
+		description TEXT,
+		price NUMERIC(10,2) NOT NULL,
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+  	);`
+
+	// users table for authentication
+	schema += `
+	CREATE TABLE IF NOT EXISTS users (
+		id SERIAL PRIMARY KEY,
+		email TEXT UNIQUE NOT NULL,
+		password_hash TEXT NOT NULL,
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+	);`
+
 	if _, err := db.Exec(schema); err != nil {
 		log.Fatalf("Failed to migrate DB: %v", err)
 	}

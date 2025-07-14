@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/Heisenberg270/ecommerce-go/handlers"
 	"github.com/go-chi/chi/v5"
@@ -12,12 +13,19 @@ func main() {
 	initDB()
 
 	r := chi.NewRouter()
-	// health check
+
+	// Auth routes
+	jwtSecret := os.Getenv("JWT_SECRET")
+	ah := handlers.NewAuthHandler(db, jwtSecret)
+	r.Post("/users/signup", ah.Signup)
+	r.Post("/users/login", ah.Login)
+
+	// Health check
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Write([]byte("OK"))
 	})
 
-	// product routes
+	// Product routes
 	ph := handlers.NewProductHandler(db)
 	r.Route("/products", func(r chi.Router) {
 		r.Post("/", ph.Create)
