@@ -1,9 +1,15 @@
 version: '3.8'
+
 services:
   api:
     build: .
     ports:
       - "8080:8080"
+    depends_on:
+      - db
+    environment:             
+      POSTGRES_PASSWORD: secret
+
   db:
     image: postgres:15
     environment:
@@ -11,3 +17,8 @@ services:
       POSTGRES_PASSWORD: secret
     ports:
       - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+volumes:
+  db_data:
