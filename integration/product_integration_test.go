@@ -4,17 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"testing"
 )
-
-// helper to decode JSON
-func decode(t *testing.T, r io.Reader, v interface{}) {
-	if err := json.NewDecoder(r).Decode(v); err != nil {
-		t.Fatalf("decode error: %v", err)
-	}
-}
 
 func TestProductWorkflow(t *testing.T) {
 	// 1) Create
