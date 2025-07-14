@@ -47,7 +47,7 @@ jobs:
         run: docker compose up -d
 
       - name: Run integration tests
-        run: ./scripts/integration_test.sh
+        run: bash scripts/integration_test.sh
 
       - name: Lint (optional)
         run: go fmt ./... && go vet ./...
