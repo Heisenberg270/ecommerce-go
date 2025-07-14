@@ -44,7 +44,7 @@ jobs:
         run: go test ./handlers
 
       - name: Start services via Docker Compose
-        run: docker-compose up -d
+        run: docker compose up -d
 
       - name: Run integration tests
         run: ./scripts/integration_test.sh
