@@ -42,10 +42,10 @@ func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		UnitPrice float64 `db:"price"`
 	}
 	itemQ := `
-    SELECT ci.cart_id, ci.product_id, ci.quantity, p.price
-    FROM cart_items ci
-    JOIN products p ON p.id = ci.product_id
-    WHERE ci.cart_id = $1`
+		SELECT ci.cart_id, ci.product_id, ci.quantity, p.price
+		FROM cart_items ci
+		JOIN products p ON p.id = ci.product_id
+		WHERE ci.cart_id = $1`
 	if err := h.DB.Select(&items, itemQ, in.CartID); err != nil {
 		http.Error(w, "failed to fetch cart items", http.StatusInternalServerError)
 		return
@@ -64,9 +64,9 @@ func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	// 5) Insert into orders
 	var order models.Order
 	ordQ := `
-    INSERT INTO orders (user_id, total_amount, status)
-    VALUES ($1, $2, $3)
-    RETURNING id, user_id, total_amount, status, created_at`
+		INSERT INTO orders (user_id, total_amount, status)
+		VALUES ($1, $2, $3)
+		RETURNING id, user_id, total_amount, status, created_at`
 	if err := h.DB.Get(&order, ordQ, userID, total, "pending"); err != nil {
 		http.Error(w, "failed to create order", http.StatusInternalServerError)
 		return
@@ -81,7 +81,7 @@ func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	for _, it := range items {
 		if _, err := tx.Exec(
 			`INSERT INTO order_items (order_id, product_id, quantity, unit_price)
-       VALUES ($1, $2, $3, $4)`,
+			 VALUES ($1, $2, $3, $4)`,
 			order.ID, it.ProductID, it.Quantity, it.UnitPrice,
 		); err != nil {
 			tx.Rollback()
@@ -110,7 +110,7 @@ func (h *OrderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 	if err := h.DB.Select(
 		&orders,
 		`SELECT id, user_id, total_amount, status, created_at
-     FROM orders WHERE user_id=$1 ORDER BY id`,
+		 FROM orders WHERE user_id=$1 ORDER BY id`,
 		userID,
 	); err != nil {
 		http.Error(w, "failed to fetch orders", http.StatusInternalServerError)
@@ -122,15 +122,14 @@ func (h *OrderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 
 // GetOrder handles GET /orders/{orderID}
 func (h *OrderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
-	idParam := chi.URLParam(r, "orderID")
-	orderID, _ := strconv.Atoi(idParam)
+	orderID, _ := strconv.Atoi(chi.URLParam(r, "orderID"))
 
 	// Fetch order
 	var order models.Order
 	if err := h.DB.Get(
 		&order,
 		`SELECT id, user_id, total_amount, status, created_at
-     FROM orders WHERE id=$1`, orderID,
+		 FROM orders WHERE id=$1`, orderID,
 	); err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, "order not found", http.StatusNotFound)
@@ -146,10 +145,10 @@ func (h *OrderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
 		ProductName string `db:"name" json:"product_name"`
 	}
 	itemQ := `
-    SELECT oi.order_id, oi.product_id, oi.quantity, oi.unit_price, p.name
-    FROM order_items oi
-    JOIN products p ON p.id = oi.product_id
-    WHERE oi.order_id = $1`
+		SELECT oi.order_id, oi.product_id, oi.quantity, oi.unit_price, p.name
+		FROM order_items oi
+		JOIN products p ON p.id = oi.product_id
+		WHERE oi.order_id = $1`
 	if err := h.DB.Select(&items, itemQ, orderID); err != nil {
 		http.Error(w, "failed to fetch order items", http.StatusInternalServerError)
 		return
@@ -159,7 +158,10 @@ func (h *OrderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
 	resp := struct {
 		Order models.Order `json:"order"`
 		Items interface{}  `json:"items"`
-	}{Order: order, Items: items}
+	}{
+		Order: order,
+		Items: items,
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)

@@ -36,9 +36,11 @@ func main() {
 	})
 
 	// Cart routes (protected)
+	// Protected routes: Carts & Orders
 	r.Group(func(r chi.Router) {
 		r.Use(handlers.AuthMiddleware(jwtSecret))
 
+		// Cart
 		ch := handlers.NewCartHandler(db)
 		r.Post("/carts", ch.CreateCart)
 		r.Route("/carts/{cartID}", func(r chi.Router) {
@@ -46,13 +48,12 @@ func main() {
 			r.Get("/", ch.GetCart)
 			r.Delete("/items/{productID}", ch.RemoveItem)
 		})
+		// Orders
+		oh := handlers.NewOrderHandler(db)
+		r.Post("/orders", oh.CreateOrder)
+		r.Get("/orders", oh.ListOrders)
+		r.Get("/orders/{orderID}", oh.GetOrder)
 	})
-
-	// Order routes (protected)
-	oh := NewOrderHandler(db)
-	r.Post("/orders", oh.CreateOrder)
-	r.Get("/orders", oh.ListOrders)
-	r.Get("/orders/{orderID}", oh.GetOrder)
 
 	log.Println("Starting server on :8080")
 	http.ListenAndServe(":8080", r)
