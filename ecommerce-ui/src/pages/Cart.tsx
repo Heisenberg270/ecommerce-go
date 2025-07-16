@@ -1,179 +1,180 @@
 // src/pages/Cart.tsx
-import { useEffect, useState } from "react";
-import api from "../api";
+import { useEffect, useState } from 'react';
+import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
-type CartInfo = {
-  cart: {
-    id: number;
-    user_id: number;
-    created_at: string;
-  };
-  items: Array<{
-    cart_id: number;
-    product_id: number;
-    quantity: number;
-    product_name: string;
-    unit_price: number;
-  }>;
-};
+interface CartItem {
+  product_id: number;
+  product_name: string;
+  unit_price: number;
+  quantity: number;
+}
 
 export default function Cart() {
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
+  // Redirect away if not logged in
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login');
+    }
+  }, [isAuthenticated, navigate]);
+
   const [cartID, setCartID] = useState<number | null>(null);
-  const [info, setInfo]     = useState<CartInfo | null>(null);
-  const [error, setError]   = useState<string | null>(null);
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const [prodID, setProdID]     = useState<number>(0);
-  const [quantity, setQuantity] = useState<number>(1);
-
-  // 1) Initialize or fetch cartID
+  // Initialize or create cart on mount
   useEffect(() => {
-    const existing = localStorage.getItem("cartID");
-    async function init() {
-      try {
-        let id = existing ? Number(existing) : null;
-        if (!id) {
-          const resp = await api.post<{ id: number }>("/carts", {});
-          id = resp.data.id;
-          localStorage.setItem("cartID", id.toString());
-        }
-        setCartID(id);
-      } catch {
-        setError("Could not initialize cart");
-      }
-    }
-    init();
-  }, []);
+    if (!isAuthenticated) return;
 
-  // 2) Fetch cart contents whenever cartID is known
-  useEffect(() => {
-    if (cartID == null) return;
-    async function fetchCart() {
-      try {
-        const resp = await api.get<CartInfo>(`/carts/${cartID}`);
-        setInfo(resp.data);
-      } catch {
-        setError("Failed to load cart");
-      }
+    const stored = localStorage.getItem('cartID');
+    if (stored) {
+      const id = Number(stored);
+      setCartID(id);
+      fetchCart(id);
+    } else {
+      axios
+        .post('/carts')
+        .then(res => {
+          const newID = res.data.id as number;
+          localStorage.setItem('cartID', String(newID));
+          setCartID(newID);
+          fetchCart(newID);
+        })
+        .catch(() => {
+          setError('Failed to create cart');
+          setLoading(false);
+        });
     }
-    fetchCart();
-  }, [cartID]);
+  }, [isAuthenticated]);
 
-  // 3) Add item
-  const addItem = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (cartID == null) return;
+  /**
+   * Fetches cart items (silent = no loading flash).
+   */
+  const fetchCart = (id: number, silent = false) => {
+    if (!silent) setLoading(true);
+    axios
+      .get(`/carts/${id}`)
+      .then(res => {
+        // always sort by product_id for stable ordering
+        const arr = Array.isArray(res.data.items) ? res.data.items : [];
+        arr.sort((a: any, b: any) => a.product_id - b.product_id);
+        setItems(arr);
+        if (!silent) setLoading(false);
+      })
+      .catch(() => {
+        setError('Failed to load cart');
+        if (!silent) setLoading(false);
+      });
+  };
+
+  /**
+   * Update quantity by deleting the old line then re-adding with newQty.
+   */
+  const updateQuantity = async (productId: number, newQty: number) => {
+    if (!cartID) return;
     try {
-      await api.post(`/carts/${cartID}/items`, { product_id: prodID, quantity });
-      const resp = await api.get<CartInfo>(`/carts/${cartID}`);
-      setInfo(resp.data);
-    } catch {
-      setError("Add item failed");
+      // 1️⃣ remove whatever is there
+      await axios.delete(`/carts/${cartID}/items/${productId}`);
+      // 2️⃣ if they still want >0, re-insert with that full qty
+      if (newQty > 0) {
+        await axios.post(`/carts/${cartID}/items`, {
+          product_id: productId,
+          quantity: newQty,
+        });
+      }
+      // 3️⃣ silent refresh so we don't flash "Loading…"
+      fetchCart(cartID, true);
+    } catch (e) {
+      console.error(e);
+      alert('Failed to update quantity');
     }
   };
 
-  // 4) Remove item
-  const removeItem = async (productID: number) => {
-    if (cartID == null) return;
+  /**
+   * Remove an item completely.
+   */
+  const removeItem = async (productId: number) => {
+    if (!cartID) return;
     try {
-      await api.delete(`/carts/${cartID}/items/${productID}`);
-      const resp = await api.get<CartInfo>(`/carts/${cartID}`);
-      setInfo(resp.data);
+      await axios.delete(`/carts/${cartID}/items/${productId}`);
+      fetchCart(cartID, true);
     } catch {
-      setError("Remove failed");
+      alert('Failed to remove item');
     }
   };
 
-  // —— EARLY RETURNS —— //
+  /**
+   * Place the order (checkout).
+   */
+ const handleCheckout = async () => {
+  if (!cartID) return;
+  try {
+    const { data: order } = await axios.post('/orders', { cart_id: cartID });
+    localStorage.removeItem('cartID');
+    navigate(`/orders/${order.id}`);
+  } catch (err: any) {
+    if (err.response?.status === 401) navigate('/login');
+    else alert('Failed to place order');
+  }
+};
+
+
+  // —— RENDERING ——
+
+  if (!isAuthenticated) {
+    // Redirect effect will run; render nothing temporarily
+    return null;
+  }
+
+  if (loading) {
+    return <p>Loading your cart…</p>;
+  }
+
   if (error) {
-    return <p style={{ color: "red" }}>{error}</p>;
-  }
-  if (cartID == null) {
-    // Still determining cartID
-    return <p>Initializing cart…</p>;
-  }
-  if (info == null) {
-    // cartID known, but info not yet fetched
-    return <p>Loading cart…</p>;
+    return <p style={{ color: 'red' }}>{error}</p>;
   }
 
-  // Normalize items array so it's never null
-  const items = info.items || [];
+  if (items.length === 0) {
+    return <p>Your cart is empty.</p>;
+  }
 
-  // —— MAIN RENDER —— //
   return (
     <div>
-      <h1>My Cart (#{info.cart.id})</h1>
-
-      <form onSubmit={addItem} style={{ marginBottom: "1rem" }}>
-        <input
-          type="number"
-          placeholder="Product ID"
-          value={prodID}
-          min={1}
-          onChange={(e) => setProdID(Number(e.target.value))}
-          required
-          style={{ marginRight: ".5rem" }}
-        />
-        <input
-          type="number"
-          placeholder="Quantity"
-          value={quantity}
-          min={1}
-          onChange={(e) => setQuantity(Number(e.target.value))}
-          required
-          style={{ marginRight: ".5rem" }}
-        />
-        <button type="submit">Add Item</button>
-      </form>
-
-      {items.length === 0 ? (
-        <p>Your cart is empty.</p>
-      ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Product</th>
-              <th>Qty</th>
-              <th>Unit Price</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((it) => (
-              <tr key={it.product_id}>
-                <td>{it.product_name}</td>
-                <td>{it.quantity}</td>
-                <td>${it.unit_price.toFixed(2)}</td>
-                <td>
-                  <button onClick={() => removeItem(it.product_id)}>
-                    Remove
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-
-          <button
-            onClick={async () => {
-              if (!cartID) return;
-              try {
-                await api.post("/orders", { cart_id: cartID });
-                // clear local cart ID so a new one starts fresh
-                localStorage.removeItem("cartID");
-                // redirect to Orders page
-                window.location.href = "/orders";
-              } catch {
-                setError("Checkout failed");
-              }
-            }}
-          >
-            Place Order
-          </button>
-
-        </table>
-
-        
-      )}
+      <h1>Your Cart</h1>
+      <ul>
+        {items.map(item => (
+          <li key={item.product_id} style={{ marginBottom: 12 }}>
+            <strong>{item.product_name}</strong> — ${item.unit_price.toFixed(2)}
+            <div style={{ marginTop: 4 }}>
+              Qty:{' '}
+              <input
+                type="number"
+                min={0}
+                value={item.quantity}
+                onChange={e =>
+                  updateQuantity(
+                    item.product_id,
+                    Math.max(0, +e.target.value)
+                  )
+                }
+                style={{ width: 60 }}
+              />
+              <button
+                onClick={() => removeItem(item.product_id)}
+                style={{ marginLeft: 8 }}
+              >
+                Remove
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+      <button onClick={handleCheckout}>Place Order</button>
     </div>
   );
 }

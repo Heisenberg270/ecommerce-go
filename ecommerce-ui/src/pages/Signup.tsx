@@ -1,41 +1,46 @@
-import { useState } from "react";
-import api from "../api";
-import { useNavigate } from "react-router-dom";
+import React, { useState } from 'react';
+import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 export default function Signup() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string>();
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await api.post("/users/signup", { email, password });
-      // on success, redirect to login
-      navigate("/login");
-    } catch (err) {
-      console.error(err);
-      setError("Signup failed");
+       await axios.post('/users/signup', { name, email, password });
+      navigate('/login');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Signup failed');
     }
   };
 
   return (
     <form onSubmit={handleSubmit}>
       <h1>Signup</h1>
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      {error && <p style={{ color: 'red' }}>{error}</p>}
       <div>
-        <label>Email </label>
+        <label>Name</label>
+        <input value={name} onChange={e => setName(e.target.value)} required />
+      </div>
+      <div>
+        <label>Email</label>
         <input
-          type="email" value={email}
+          type="email"
+          value={email}
           onChange={e => setEmail(e.target.value)}
           required
         />
       </div>
       <div>
-        <label>Password </label>
+        <label>Password</label>
         <input
-          type="password" value={password}
+          type="password"
+          value={password}
           onChange={e => setPassword(e.target.value)}
           required
         />

@@ -1,75 +1,59 @@
-import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import api from "../api";
+import { useEffect, useState } from 'react';
+import axios from 'axios';
+import { useParams, useNavigate } from 'react-router-dom';
 
-type OrderInfo = {
-  order: {
-    id: number;
-    user_id: number;
-    total_amount: number;
-    status: string;
-    created_at: string;
-  };
-  items: Array<{
-    product_id: number;
-    quantity: number;
-    unit_price: number;
-    product_name: string;
-  }>;
-};
+interface OrderItem {
+  product_id: number;
+  product_name: string;
+  unit_price: number;
+  quantity: number;
+}
+interface OrderMeta {
+  id: number;
+  total_amount: number;
+  status: string;
+  created_at: string;
+}
 
 export default function OrderDetails() {
-  const { orderID } = useParams<{ orderID: string }>();
-  const [info, setInfo] = useState<OrderInfo | null>(null);
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [order, setOrder] = useState<OrderMeta | null>(null);
+  const [items, setItems] = useState<OrderItem[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!orderID) return;
-    api
-      .get<OrderInfo>(`/orders/${orderID}`)
-      .then(res => setInfo(res.data))
-      .catch(() => setError("Failed to load order"));
-  }, [orderID]);
+    axios
+      .get(`/orders/${id}`)
+      .then(res => {
+        setOrder(res.data.order);
+        setItems(res.data.items);
+      })
+      .catch(() => setError('Failed to load order details'));
+  }, [id]);
 
-  if (error) return <p style={{ color: "red" }}>{error}</p>;
-  if (!info) return <p>Loading order…</p>;
+  if (error) return <p style={{ color: 'red' }}>{error}</p>;
+  if (!order) return <p>Loading order…</p>;
 
   return (
     <div>
-      <h1>Order #{info.order.id}</h1>
-      <p>
-        <strong>Status:</strong> {info.order.status}<br/>
-        <strong>Total:</strong> ${info.order.total_amount.toFixed(2)}<br/>
-        <strong>Placed at:</strong>{" "}
-        {new Date(info.order.created_at).toLocaleString()}
-      </p>
+      <button onClick={() => navigate(-1)} style={{ marginBottom: 16 }}>
+        ← Back
+      </button>
+      <h1>Order #{order.id}</h1>
+      <p>Status: {order.status}</p>
+      <p>Total: ${order.total_amount.toFixed(2)}</p>
+      <p>Placed on: {new Date(order.created_at).toLocaleString()}</p>
 
       <h2>Items</h2>
-      {info.items.length === 0 ? (
-        <p>(No items in this order.)</p>
-      ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Product</th><th>Qty</th><th>Unit Price</th><th>Subtotal</th>
-            </tr>
-          </thead>
-          <tbody>
-            {info.items.map(it => (
-              <tr key={it.product_id}>
-                <td>{it.product_name}</td>
-                <td>{it.quantity}</td>
-                <td>${it.unit_price.toFixed(2)}</td>
-                <td>${(it.quantity * it.unit_price).toFixed(2)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      <p>
-        <Link to="/orders">← Back to Orders</Link>
-      </p>
+      <ul>
+        {items.map(item => (
+          <li key={item.product_id}>
+            {item.product_name} × {item.quantity} — $
+            {(item.unit_price * item.quantity).toFixed(2)}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

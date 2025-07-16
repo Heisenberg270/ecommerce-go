@@ -1,38 +1,38 @@
-import { useEffect, useState } from "react";
-import api from "../api";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from 'react';
+import axios from 'axios';
+import { Link } from 'react-router-dom';
+
+interface Order {
+  id: number;
+  total_amount: number;
+  status: string;
+  created_at: string;
+}
 
 export default function Orders() {
-  const [orders, setOrders] = useState<Array<{
-    id: number;
-    total_amount: number;
-    status: string;
-    created_at: string;
-  }>>([]);
-  const [error, setError] = useState<string>();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
-  // fetch list of orders
   useEffect(() => {
-    api.get("/orders")
+    axios
+      .get('/orders')
       .then(res => setOrders(res.data))
-      .catch(() => setError("Failed to load orders"));
+      .catch(() => setError('Failed to fetch orders'));
   }, []);
 
-  if (error) return <p style={{ color: "red" }}>{error}</p>;
-  if (orders.length === 0) return <p>No orders yet.</p>;
+  if (error) return <p style={{ color: 'red' }}>{error}</p>;
 
   return (
     <div>
-      <h1>My Orders</h1>
+      <h1>Your Orders</h1>
       <ul>
-       {orders.map(o => (
-         <li key={o.id}>
-           <Link to={`/orders/${o.id}`}>
-             Order #{o.id}: ${o.total_amount.toFixed(2)} — {o.status} on{" "}
-             {new Date(o.created_at).toLocaleString()}
-           </Link>
-         </li>
-       ))}
+        {orders.map(o => (
+          <li key={o.id}>
+            <Link to={`/orders/${o.id}`}>Order #{o.id}</Link> — $
+            {o.total_amount.toFixed(2)} —{' '}
+            {new Date(o.created_at).toLocaleString()}
+          </li>
+        ))}
       </ul>
     </div>
   );

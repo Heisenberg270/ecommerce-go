@@ -1,43 +1,34 @@
-import { useState } from "react";
-import api from "../api";
-import { useNavigate } from "react-router-dom";
+import React, { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string>();
-  const navigate = useNavigate();
+  const { login } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await api.post<{ token: string }>("/users/login", { email, password });
-      // store JWT
-      localStorage.setItem("jwt", res.data.token);
-      // redirect to home or cart
-      navigate("/");
-    } catch (err) {
-      console.error(err);
-      setError("Login failed");
+      await login(email, password);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Login failed');
     }
   };
 
   return (
     <form onSubmit={handleSubmit}>
       <h1>Login</h1>
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      {error && <p style={{ color: 'red' }}>{error}</p>}
       <div>
-        <label>Email </label>
-        <input
-          type="email" value={email}
-          onChange={e => setEmail(e.target.value)}
-          required
-        />
+        <label>Email</label>
+        <input value={email} onChange={e => setEmail(e.target.value)} required />
       </div>
       <div>
-        <label>Password </label>
+        <label>Password</label>
         <input
-          type="password" value={password}
+          type="password"
+          value={password}
           onChange={e => setPassword(e.target.value)}
           required
         />

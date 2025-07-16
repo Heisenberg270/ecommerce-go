@@ -11,3 +11,5 @@ require (
 	golang.org/x/crypto v0.13.0
 // …other deps…
 )
+
+require github.com/go-chi/cors v1.2.2

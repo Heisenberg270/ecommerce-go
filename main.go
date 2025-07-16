@@ -7,12 +7,23 @@ import (
 
 	"github.com/Heisenberg270/ecommerce-go/handlers"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/cors"
 )
 
 func main() {
 	initDB()
 
 	r := chi.NewRouter()
+	// CORS — allow your frontend dev server to talk to us
+	r.Use(cors.Handler(cors.Options{
+		// put your actual domains here in production
+		AllowedOrigins:   []string{"http://localhost:5173"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: false,
+		MaxAge:           300, // 5 minutes
+	}))
 
 	// Auth routes
 	jwtSecret := os.Getenv("JWT_SECRET")
